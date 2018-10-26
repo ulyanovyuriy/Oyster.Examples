@@ -2,26 +2,42 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Oyster.Examples.ProtoBuf
 {
     internal class Program
     {
-        private const int OfficeCount = 5;
-        private const int EmployeeCount = 6;
-        private const int TaskCount = 3;
-        private const int IterationCount = 1000;
+        private const int OfficeCount = 10;
+        private const int EmployeeCount = 50;
+        private const int TaskCount = 5;
+        private const int IterationCount = 100;
 
         private static void Main()
         {
             Func<string, Action<Stream, object>, Func<Stream, object>, Tuple<string, Action<Stream, object>, Func<Stream, object>>> serializer = Tuple.Create;
 
             var binaryFormatter = new BinaryFormatter();
+            var gzb = new GZSerializer(binaryFormatter.Serialize, binaryFormatter.Deserialize);
+
             var protoFormatter = new ProtoFormatter();
+            var gzProto = new GZSerializer(protoFormatter.Serialize, protoFormatter.Deserialize);
+
+            var dcSerializer = new DataContractSerializer(typeof(Office[]), "Offices", "Offices", null, int.MaxValue, false, true, null, null);
+            var gzDc = new GZSerializer(dcSerializer.WriteObject, dcSerializer.ReadObject);
+
             TestSerializers(
                 serializer("BinaryFormatter", binaryFormatter.Serialize, binaryFormatter.Deserialize),
-                serializer("protobuf-net v2", protoFormatter.Serialize, protoFormatter.Deserialize));
+                serializer("BinaryFormatter GZ", gzb.Serialize, gzb.Deserialize),
+                serializer("protobuf-net v2", protoFormatter.Serialize, protoFormatter.Deserialize),
+                serializer("protobuf-net v2 GZ", gzProto.Serialize, gzProto.Deserialize),
+                serializer("dataContract", dcSerializer.WriteObject, dcSerializer.ReadObject),
+                serializer("dataContract GZ", gzDc.Serialize, gzDc.Deserialize)
+                );
+
+            Console.WriteLine("press any key to exit...");
+            Console.ReadKey();
         }
 
         private static void TestSerializers(params Tuple<string, Action<Stream, object>, Func<Stream, object>>[] serializers)
@@ -68,7 +84,7 @@ namespace Oyster.Examples.ProtoBuf
                     serializeFunc(ms, data);
                     ms.Flush();
                     serializeWatch.Stop();
-                    
+
                     sizeBytes = (int)ms.Position;
 
                     ms.Position = 0;
