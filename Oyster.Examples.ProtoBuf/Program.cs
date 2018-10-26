@@ -4,13 +4,14 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Runtime.Serialization.Json;
 
 namespace Oyster.Examples.ProtoBuf
 {
     internal class Program
     {
         private const int OfficeCount = 10;
-        private const int EmployeeCount = 50;
+        private const int EmployeeCount = 10;
         private const int TaskCount = 5;
         private const int IterationCount = 100;
 
@@ -44,7 +45,7 @@ namespace Oyster.Examples.ProtoBuf
         {
             var data = GenerateData();
             var results = serializers
-                .Select(t => new { Name = t.Item1, TimeSize = TestSerializer(IterationCount, data, t.Item2, t.Item3) })
+                .Select(t => new { Name = t.Item1, TimeSize = TestSerializer(t.Item1, IterationCount, data, t.Item2, t.Item3) })
                 .ToList();
 
             Console.WriteLine("Serialization of {0} objects, {1} iterations:", OfficeCount * EmployeeCount * TaskCount, IterationCount);
@@ -58,6 +59,7 @@ namespace Oyster.Examples.ProtoBuf
         }
 
         private static Tuple<int, int, int> TestSerializer(
+            string serializerName,
             int iterationCount,
             object data,
             Action<Stream, object> serializeFunc,
@@ -67,8 +69,15 @@ namespace Oyster.Examples.ProtoBuf
             using (var ms = new MemoryStream())
             {
                 serializeFunc(ms, data);
+
                 ms.Flush();
                 ms.Position = 0;
+
+                File.WriteAllBytes(serializerName, ms.ToArray());
+
+                ms.Flush();
+                ms.Position = 0;
+
                 deserializeFunc(ms);
             }
 
